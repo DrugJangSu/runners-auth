@@ -1,0 +1,32 @@
+# 실행 환경은 local을 선택하세요. 실제 테스트 비밀번호는 private 환경 파일에서 관리합니다.
+@base = http://127.0.0.1:8080
+
+### 1. 가입 성공 → 201, role=MEMBER
+POST {{base}}/api/v1/auth/signup
+Content-Type: application/json
+
+{"loginId":"runner01","password":"{{testSignupPassword}}","nickname":"첫러너"}
+
+### 2. 같은 아이디로 또 가입 → 409 DUPLICATE_LOGIN_ID
+POST {{base}}/api/v1/auth/signup
+Content-Type: application/json
+
+{"loginId":"runner01","password":"{{testSignupPassword}}","nickname":"첫러너"}
+
+### 3. role=LEADER 몰래 넣기 → 201인데 role은 MEMBER
+POST {{base}}/api/v1/auth/signup
+Content-Type: application/json
+
+{"loginId":"runner02","password":"{{testSignupPassword}}","nickname":"둘째","role":"LEADER"}
+
+### 4. 대문자·3글자 아이디 → 400 INVALID_INPUT
+POST {{base}}/api/v1/auth/signup
+Content-Type: application/json
+
+{"loginId":"ABC","password":"{{testSignupPassword}}","nickname":"대문자"}
+
+### 5. 비번 7자 → 400 INVALID_INPUT
+POST {{base}}/api/v1/auth/signup
+Content-Type: application/json
+
+{"loginId":"runner03","password":"{{testShortPassword}}","nickname":"짧은비번"}
