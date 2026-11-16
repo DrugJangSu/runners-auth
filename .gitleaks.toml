@@ -62,6 +62,26 @@ regexTarget = "line"
 paths = ['''(?:^|/)src/test/http/04-cookie\.http$''']
 regexes = ['''^\s*client\.global\.set\("refreshCookie",\ cookies\[i\]\.split\(";"\)\[0\]\.substring\("refreshToken="\.length\)\);\s*$''', '''^\s*if\ \(cookies\[i\]\.startsWith\("refreshToken="\)\)\ \{\s*$''']
 
+# Exact token-processing and cookie-name assertions, not literal secrets.
+
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)src/main/java/com/kdt/runners/AuthInterceptor\.java''']
+regexes = ['''^\s*String\ token\ =\ jwtService\.bearerValue\(request\.getHeader\("Authorization"\)\);\s*$''']
+
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)src/main/java/com/kdt/runners/AuthService\.java''']
+regexes = ['''^\s*if\ \(refreshToken\ ==\ null\ \|\|\ refreshToken\.isBlank\(\)\)\ \{\s*$''']
+
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)src/test/java/com/kdt/runners/RunnerAuthTest\.java''']
+regexes = ['''^\s*\.andExpect\(header\(\)\.string\("Set\-Cookie",\ containsString\("refreshToken="\)\)\)\s*$''', '''^\s*\.andExpect\(header\(\)\.string\("Set\-Cookie",\ containsString\("refreshToken="\)\)\);\s*$''']
+
 [[rules]]
 id = "credential-in-url"
 description = "Credentials embedded in URL"

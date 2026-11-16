@@ -30,3 +30,163 @@ POST {{base}}/api/v1/auth/signup
 Content-Type: application/json
 
 {"loginId":"runner03","password":"{{testShortPassword}}","nickname":"짧은비번"}
+
+### 6. 로그인 성공 → 200, Set-Cookie
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"runner01","password":"{{testSignupPassword}}"}
+
+### 7. 비번 틀림 → 401 LOGIN_FAILED
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"runner01","password":"{{testPassword1}}"}
+
+### 8. 없는 아이디 → 401 LOGIN_FAILED (7번이랑 똑같은 응답이어야 함)
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"nobody","password":"{{testSignupPassword}}"}
+
+### 9. 재발급 → 200, 새 Set-Cookie (6번에서 받은 쿠키를 IntelliJ가 자동으로 보냄)
+POST {{base}}/api/v1/auth/refresh
+
+### 10. 로그아웃 → 204, Set-Cookie에 Max-Age=0
+POST {{base}}/api/v1/auth/logout
+
+### 11. 쿠키 지운 뒤 재발급 → 401 TOKEN_FAILED
+POST {{base}}/api/v1/auth/refresh
+
+### 12. 로그인하고 access 자동 저장
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"runner01","password":"{{testSignupPassword}}"}
+
+> {% client.global.set("access", response.body.accessToken); %}
+
+### 13. 내 정보 → 200
+GET {{base}}/api/v1/auth/me
+Authorization: Bearer {{access}}
+
+### 14. 출입증 없이 → 401 TOKEN_FAILED (경비원이 막음)
+GET {{base}}/api/v1/auth/me
+
+### 15. 닉네임 수정 → 200, 새 닉네임
+PATCH {{base}}/api/v1/auth/me
+Authorization: Bearer {{access}}
+Content-Type: application/json
+
+{"nickname":"달리는첫러너"}
+
+### 16. 닉네임 1자 → 400 INVALID_INPUT
+PATCH {{base}}/api/v1/auth/me
+Authorization: Bearer {{access}}
+Content-Type: application/json
+
+{"nickname":"김"}
+
+### 17. leader 로그인 → leaderToken 저장
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"leader","password":"{{testPassword2}}"}
+
+> {% client.global.set("leaderToken", response.body.accessToken); %}
+
+### 18. member 로그인 → memberToken 저장
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"member","password":"{{testPassword3}}"}
+
+> {% client.global.set("memberToken", response.body.accessToken); %}
+
+### 19. MEMBER가 목록 → 403
+GET {{base}}/api/v1/runners
+Authorization: Bearer {{memberToken}}
+
+### 20. LEADER가 목록 → 200, id 1·2·3·4 순서
+GET {{base}}/api/v1/runners
+Authorization: Bearer {{leaderToken}}
+
+### 21. MEMBER(4번)가 본인 조회 → 200
+GET {{base}}/api/v1/runners/4
+Authorization: Bearer {{memberToken}}
+
+### 22. MEMBER가 남(3번) 조회 → 403
+GET {{base}}/api/v1/runners/3
+Authorization: Bearer {{memberToken}}
+
+### 23. MEMBER가 없는 번호(999) 조회 → 403 (404 아님!)
+GET {{base}}/api/v1/runners/999
+Authorization: Bearer {{memberToken}}
+
+### 24. LEADER가 없는 번호(999) 조회 → 404
+GET {{base}}/api/v1/runners/999
+Authorization: Bearer {{leaderToken}}
+
+### 25. 숫자 아닌 id → 400
+GET {{base}}/api/v1/runners/abc
+Authorization: Bearer {{leaderToken}}
+
+### 26. runner01 로그인 → runnerToken 저장 (MEMBER, id 1)
+POST {{base}}/api/v1/auth/login
+Content-Type: application/json
+
+{"loginId":"runner01","password":"{{testSignupPassword}}"}
+
+> {% client.global.set("runnerToken", response.body.accessToken); %}
+
+### 27. MEMBER가 역할 변경 → 403
+PATCH {{base}}/api/v1/runners/2/role
+Authorization: Bearer {{runnerToken}}
+Content-Type: application/json
+
+{"role":"LEADER"}
+
+### 28. LEADER가 본인 역할 변경 → 400 CANNOT_CHANGE_OWN_ROLE
+PATCH {{base}}/api/v1/runners/3/role
+Authorization: Bearer {{leaderToken}}
+Content-Type: application/json
+
+{"role":"MEMBER"}
+
+### 29. LEADER가 member(4번)를 LEADER로 승격 → 200
+PATCH {{base}}/api/v1/runners/4/role
+Authorization: Bearer {{leaderToken}}
+Content-Type: application/json
+
+{"role":"LEADER"}
+
+### 30. 승격된 member의 "옛날 토큰"으로 목록 → 200 (아까 19번은 403이었음!)
+GET {{base}}/api/v1/runners
+Authorization: Bearer {{memberToken}}
+
+### 31. 이상한 역할 KING → 400
+PATCH {{base}}/api/v1/runners/2/role
+Authorization: Bearer {{leaderToken}}
+Content-Type: application/json
+
+{"role":"KING"}
+
+### 32. LEADER 본인 삭제 → 400 CANNOT_DELETE_SELF
+DELETE {{base}}/api/v1/runners/3
+Authorization: Bearer {{leaderToken}}
+
+### 33. MEMBER(runner01)가 남(2번) 삭제 → 403
+DELETE {{base}}/api/v1/runners/2
+Authorization: Bearer {{runnerToken}}
+
+### 34. LEADER가 없는 번호 삭제 → 404
+DELETE {{base}}/api/v1/runners/999
+Authorization: Bearer {{leaderToken}}
+
+### 35. MEMBER(runner01)가 본인(1번) 삭제 → 204
+DELETE {{base}}/api/v1/runners/1
+Authorization: Bearer {{runnerToken}}
+
+### 36. 삭제된 runner01 토큰으로 내 정보 → 401
+GET {{base}}/api/v1/auth/me
+Authorization: Bearer {{runnerToken}}
