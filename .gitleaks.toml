@@ -1,0 +1,108 @@
+title = "runners-auth secret protection"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "literal-password-or-token"
+description = "Literal password, secret, API key or token assignment"
+regex = '''(?i)(?:[a-z0-9_.-]*(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|token))["']?\s*(?:=|:)\s*["']?([^\s"',;<>`]+)'''
+secretGroup = 1
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^\$\{[A-Z][A-Z0-9_]*\}$''', '''^(?:YOUR_[A-Z0-9_]+|null|None)$''']
+
+
+# Only HTTP Client variable references in test request files are allowed.
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|/)src/test/http/.*\.http$''']
+regexes = ['''^\{\{[A-Za-z_][A-Za-z0-9_]*\}\}$''']
+
+
+# A complete UUID generation statement is code, not a hardcoded credential.
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)src/main/java/.*\.java$''']
+regexes = ['''^\s*String\s+apiKey\s*=\s*UUID\.randomUUID\(\)\.toString\(\);\s*$''']
+
+
+# Maven coordinates for JJWT are public dependency identifiers, not tokens.
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)build\.gradle$''']
+regexes = ['''^\s*(?:implementation|runtimeOnly)\s+'io\.jsonwebtoken:jjwt-(?:api|impl|jackson):[0-9]+\.[0-9]+\.[0-9]+'(?:\s*//\s*← 추가: JWT)?\s*$''']
+
+
+# Token extraction and an empty-token guard contain no literal credentials.
+# 비밀번호 검사 도구가 'token' 변수 줄을 비밀 값으로 오해하지 않도록 예외로 허용하는 규칙입니다.
+[[rules.allowlists]]
+# 아래 paths와 regexes 조건을 둘 다 만족할 때만 예외로 인정합니다.
+condition = "AND"
+# 파일 전체가 아니라 한 줄씩 비교합니다.
+regexTarget = "line"
+# 예외를 적용할 파일: AuthService.java 또는 JwtService.java 뿐입니다.
+paths = ['''(?:^|/)src/main/java/com/kdt/runners/(?:AuthService|JwtService)\.java$''']
+# 예외로 허용할 줄 3가지: 헤더에서 토큰 꺼내기, Bearer 떼고 다듬기, 토큰이 비었는지 검사하기.
+regexes = ['''^\s*String\s+token\s*=\s*this\.jwtService\.bearerValue\(authorization\);\s*$''', '''^\s*String\s+token\s*=\s*authorization\.substring\("Bearer "\.length\(\)\)\.trim\(\);\s*$''', '''^\s*if\s*\(token\s*==\s*null\s*\|\|\s*token\.isBlank\(\)\)\s*\{\s*$''']
+
+# Cookie parsing and null guard: no embedded credential values.
+
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)src/main/java/com/kdt/runners/AuthController\.java$''']
+regexes = ['''^\s*if\s*\(refreshToken\s*==\s*null\s*\|\|\s*refreshToken\.isBlank\(\)\)\s*\{\s*$''']
+
+[[rules.allowlists]]
+condition = "AND"
+regexTarget = "line"
+paths = ['''(?:^|/)src/test/http/04-cookie\.http$''']
+regexes = ['''^\s*client\.global\.set\("refreshCookie",\ cookies\[i\]\.split\(";"\)\[0\]\.substring\("refreshToken="\.length\)\);\s*$''', '''^\s*if\ \(cookies\[i\]\.startsWith\("refreshToken="\)\)\ \{\s*$''']
+
+[[rules]]
+id = "credential-in-url"
+description = "Credentials embedded in URL"
+regex = '''(?i)[a-z][a-z0-9+.-]*://[^\s/:@]+:([^\s/@]+)@'''
+secretGroup = 1
+
+[[rules]]
+id = "authorization-value"
+description = "Hardcoded Authorization header"
+regex = '''(?i)(?:bearer|basic)\s+([a-zA-Z0-9_+/.=-]{8,})'''
+secretGroup = 1
+
+[[rules]]
+id = "credential-setter"
+description = "Hardcoded credential passed to setter"
+regex = '''(?i)(?:set|with)(?:password|passwd|secret|apiKey|accessToken|refreshToken|token)\s*\(\s*["']([^"'\r\n]+)["']'''
+secretGroup = 1
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^\$\{[A-Z][A-Z0-9_]*\}$''', '''^YOUR_[A-Z0-9_]+$''']
+
+[[rules]]
+id = "xml-credential-value"
+description = "Password or token in XML configuration"
+regex = '''(?i)(?:name|key)\s*=\s*["'][^"']*(?:password|passwd|secret|api[_-]?key|token)["']\s+value\s*=\s*["']([^"'\r\n]+)["']'''
+secretGroup = 1
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^\$\{[A-Z][A-Z0-9_]*\}$''', '''^YOUR_[A-Z0-9_]+$''']
+
+[[rules]]
+id = "private-key-header"
+description = "Private key header, including incomplete keys"
+regex = '''-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----'''
+
+[[rules]]
+id = "short-password-variable"
+description = "Password stored in abbreviated variable"
+regex = '''(?i)\b(?:[a-z0-9_]*(?:pass|passwd|pwd|pw)|api[_-]?key)["']?\s*(?:=|:)\s*["']([^"'\r\n]+)["']'''
+secretGroup = 1
+
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^\$\{[A-Z][A-Z0-9_]*\}$''', '''^YOUR_[A-Z0-9_]+$''']

@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: runners-auth
+
+# DB를 사용하는 경우 아래 환경변수를 설정하고 활성화하세요.
+#  datasource:
+#    url: ${DB_URL}
+#    username: ${DB_USERNAME}
+#    password: ${DB_PASSWORD}
+# JWT 서명 키 등 실제 비밀 값도 환경변수로 관리하세요.
